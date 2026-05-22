@@ -229,9 +229,9 @@ int main()
 
 ---
 
-4. Go Back N ARQ
+4. FTP Program
 
-Receiver (Server)
+FTP Server
 
 #include<stdio.h>
 #include<stdlib.h>
@@ -243,8 +243,8 @@ int main()
 {
     int s_sock,c_sock,len;
     struct sockaddr_in server,client;
-    char buf[100];
-    int expected=0;
+    char filename[100],data[100];
+    FILE *fp;
 
     s_sock=socket(AF_INET,SOCK_STREAM,0);
 
@@ -258,24 +258,30 @@ int main()
     len=sizeof(client);
     c_sock=accept(s_sock,(struct sockaddr*)&client,&len);
 
-    while(1)
+    recv(c_sock,filename,sizeof(filename),0);
+    fp=fopen(filename,"r");
+
+    if(fp==NULL)
     {
-        recv(c_sock,buf,sizeof(buf),0);
-        int seq=buf[0]-'0';
-
-        if(seq==expected)
-        {
-            printf("Received frame %d\n",seq);
-            expected++;
-        }
-
-        buf[0]=(expected-1)+'0';
-        send(c_sock,buf,sizeof(buf),0);
+        strcpy(data,"File not found");
+        send(c_sock,data,sizeof(data),0);
     }
+    else
+    {
+        while(fgets(data,sizeof(data),fp)!=NULL)
+            send(c_sock,data,sizeof(data),0);
+
+        strcpy(data,"EOF");
+        send(c_sock,data,sizeof(data),0);
+        fclose(fp);
+    }
+
+    close(c_sock);
+    close(s_sock);
 }
 
 
-Sender (Client)
+FTP Client
 
 #include<stdio.h>
 #include<stdlib.h>
@@ -283,13 +289,11 @@ Sender (Client)
 #include<unistd.h>
 #include<arpa/inet.h>
 
-#define WINDOW 4
-
 int main()
 {
-    int sock,i=0,base=0;
+    int sock;
     struct sockaddr_in server;
-    char buf[100];
+    char filename[100],data[100];
 
     sock=socket(AF_INET,SOCK_STREAM,0);
 
@@ -299,27 +303,72 @@ int main()
 
     connect(sock,(struct sockaddr*)&server,sizeof(server));
 
-    while(i<10)
+    printf("Enter file name: ");
+    scanf("%s",filename);
+
+    send(sock,filename,sizeof(filename),0);
+
+    while(1)
     {
-        if(i<base+WINDOW)
+        recv(sock,data,sizeof(data),0);
+
+        if(strcmp(data,"EOF")==0)
+            break;
+
+        printf("%s",data);
+    }
+
+    close(sock);
+}
+
+
+---
+
+5. Leaky Bucket Algorithm
+
+#include<stdio.h>
+
+int main()
+{
+    int bucket_size,output_rate,packets,i,packet,bucket=0;
+
+    printf("Enter bucket size: ");
+    scanf("%d",&bucket_size);
+
+    printf("Enter output rate: ");
+    scanf("%d",&output_rate);
+
+    printf("Enter number of packets: ");
+    scanf("%d",&packets);
+
+    for(i=1;i<=packets;i++)
+    {
+        printf("Enter packet size %d: ",i);
+        scanf("%d",&packet);
+
+        if(packet > bucket_size)
+            printf("Packet %d dropped\n",i);
+        else if(bucket + packet > bucket_size)
+            printf("Bucket overflow, packet %d dropped\n",i);
+        else
         {
-            buf[0]=i+'0';
-            printf("Sending frame %d\n",i);
-            send(sock,buf,sizeof(buf),0);
-            i++;
+            bucket += packet;
+            printf("Packet %d accepted\n",i);
         }
 
-        recv(sock,buf,sizeof(buf),0);
-        int ack=buf[0]-'0';
-        printf("ACK %d received\n",ack);
-        base=ack+1;
+        if(bucket > output_rate)
+            bucket -= output_rate;
+        else
+            bucket = 0;
+
+        printf("Bucket content after transmission: %d\n",bucket);
     }
 }
 
 
 ---
 
-5. Distance Vector Routing Algorithm
+6. Distance Vector Routing Algorithm
 
 #include<stdio.h>
 
