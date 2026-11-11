@@ -1,423 +1,731 @@
-Computer Networks Lab Programs
+CSL411 - Compiler Design Lab Programs
 
-1. TCP Socket Programming
+================================================================================
+1. LEXICAL ANALYZER FOR C (IN C)
+================================================================================
 
-TCP Server
-
+Input File: sample.c
+--------------------
 #include<stdio.h>
-#include<stdlib.h>
-#include<string.h>
-#include<unistd.h>
-#include<arpa/inet.h>
-
-int main()
+void main()
 {
-    int s_sock,c_sock,len;
-    struct sockaddr_in server,client;
-    char buf[100];
-
-    s_sock=socket(AF_INET,SOCK_STREAM,0);
-
-    server.sin_family=AF_INET;
-    server.sin_port=htons(3003);
-    server.sin_addr.s_addr=INADDR_ANY;
-
-    bind(s_sock,(struct sockaddr*)&server,sizeof(server));
-    listen(s_sock,5);
-
-    len=sizeof(client);
-    c_sock=accept(s_sock,(struct sockaddr*)&client,&len);
-
-    recv(c_sock,buf,sizeof(buf),0);
-    printf("Message from client: %s\n",buf);
-
-    printf("Enter reply: ");
-    scanf("%s",buf);
-
-    send(c_sock,buf,sizeof(buf),0);
-
-    close(c_sock);
-    close(s_sock);
+int a=1,b=2;
+printf("The sum of %d and %d is:%d",a,b,a+b);
 }
 
 
-TCP Client
+Running Commands:
+-----------------
+gcc lexical.c -o lexical
+./lexical
 
+
+Code: lexical.c
+---------------
 #include<stdio.h>
-#include<stdlib.h>
 #include<string.h>
-#include<unistd.h>
-#include<arpa/inet.h>
+#include<ctype.h>
+
+FILE *fp;
+int lineno=0;
+char c;
+char lexbuf[50],symtab[50][20];
+int i=0,x;
+char kw[30][20]={"void","int","float","double","short","long","if","else","switch","case","break","return","main","static","goto"};
+char delim[]={'(',')','{','}','[',']',';',','};
+char oper[]={'+','=','-','*','/','<','>'};
+
+int isdelim(char);
+int isoper(char);
+int iskw(char[]);
+int lookup(char s[]);
 
 int main()
 {
-    int sock;
-    struct sockaddr_in server;
-    char buf[100];
-
-    sock=socket(AF_INET,SOCK_STREAM,0);
-
-    server.sin_family=AF_INET;
-    server.sin_port=htons(3003);
-    server.sin_addr.s_addr=inet_addr("127.0.0.1");
-
-    connect(sock,(struct sockaddr*)&server,sizeof(server));
-
-    printf("Enter message: ");
-    scanf("%s",buf);
-
-    send(sock,buf,sizeof(buf),0);
-
-    recv(sock,buf,sizeof(buf),0);
-    printf("Reply from server: %s\n",buf);
-
-    close(sock);
-}
-
-
----
-
-2. UDP Socket Programming
-
-UDP Server
-
-#include<stdio.h>
-#include<string.h>
-#include<arpa/inet.h>
-#include<sys/socket.h>
-
-int main()
-{
-    int sock;
-    struct sockaddr_in server,client;
-    char buffer[100];
-    int len;
-
-    sock=socket(AF_INET,SOCK_DGRAM,0);
-
-    server.sin_family=AF_INET;
-    server.sin_port=htons(3004);
-    server.sin_addr.s_addr=INADDR_ANY;
-
-    bind(sock,(struct sockaddr*)&server,sizeof(server));
-
-    len=sizeof(client);
-
-    recvfrom(sock,buffer,100,0,(struct sockaddr*)&client,&len);
-    printf("Message: %s\n",buffer);
-
-    printf("Enter reply: ");
-    scanf("%s",buffer);
-
-    sendto(sock,buffer,100,0,(struct sockaddr*)&client,len);
-}
-
-
-UDP Client
-
-#include<stdio.h>
-#include<string.h>
-#include<arpa/inet.h>
-#include<sys/socket.h>
-
-int main()
-{
-    int sock;
-    struct sockaddr_in server;
-    char buffer[100];
-
-    sock=socket(AF_INET,SOCK_DGRAM,0);
-
-    server.sin_family=AF_INET;
-    server.sin_port=htons(3004);
-    server.sin_addr.s_addr=inet_addr("127.0.0.1");
-
-    printf("Enter message: ");
-    scanf("%s",buffer);
-
-    sendto(sock,buffer,100,0,(struct sockaddr*)&server,sizeof(server));
-
-    recvfrom(sock,buffer,100,0,NULL,NULL);
-    printf("Reply: %s\n",buffer);
-}
-
-
----
-
-3. Stop and Wait ARQ
-
-Receiver (Server)
-
-#include<stdio.h>
-#include<stdlib.h>
-#include<string.h>
-#include<unistd.h>
-#include<arpa/inet.h>
-
-int main()
-{
-    int s_sock,c_sock,len;
-    struct sockaddr_in server,client;
-    char buf[100];
-    int expected=0;
-
-    s_sock=socket(AF_INET,SOCK_STREAM,0);
-
-    server.sin_family=AF_INET;
-    server.sin_port=htons(9009);
-    server.sin_addr.s_addr=INADDR_ANY;
-
-    bind(s_sock,(struct sockaddr*)&server,sizeof(server));
-    listen(s_sock,5);
-
-    len=sizeof(client);
-    c_sock=accept(s_sock,(struct sockaddr*)&client,&len);
-
-    while(1)
+    fp=fopen("sample.c","r");
+    if(fp==NULL) {
+        printf("Error: Cannot open sample.c\n");
+        return 1;
+    }
+    c=getc(fp);
+    while(c!=EOF)
     {
-        recv(c_sock,buf,sizeof(buf),0);
-        int seq=buf[0]-'0';
-
-        if(seq==expected)
+        if(c==' '||c=='\t');
+        else if(c=='\n')
         {
-            printf("Received frame %d\n",seq);
-            expected=1-expected;
+            lineno++;
         }
-        else
-            printf("Duplicate frame %d\n",seq);
-
-        buf[0]=seq+'0';
-        send(c_sock,buf,sizeof(buf),0);
-    }
-}
-
-
-Sender (Client)
-
-#include<stdio.h>
-#include<stdlib.h>
-#include<string.h>
-#include<unistd.h>
-#include<arpa/inet.h>
-
-int main()
-{
-    int sock;
-    struct sockaddr_in server;
-    char buf[100];
-    int i;
-
-    sock=socket(AF_INET,SOCK_STREAM,0);
-
-    server.sin_family=AF_INET;
-    server.sin_port=htons(9009);
-    server.sin_addr.s_addr=inet_addr("127.0.0.1");
-
-    connect(sock,(struct sockaddr*)&server,sizeof(server));
-
-    for(i=0;i<10;i++)
-    {
-        buf[0]=(i%2)+'0';
-        printf("Sending frame %d\n",i%2);
-        send(sock,buf,sizeof(buf),0);
-
-        recv(sock,buf,sizeof(buf),0);
-        printf("ACK %c received\n",buf[0]);
-    }
-}
-
-
----
-
-4. FTP Program
-
-FTP Server
-
-#include<stdio.h>
-#include<stdlib.h>
-#include<string.h>
-#include<unistd.h>
-#include<arpa/inet.h>
-
-int main()
-{
-    int s_sock,c_sock,len;
-    struct sockaddr_in server,client;
-    char filename[100],data[100];
-    FILE *fp;
-
-    s_sock=socket(AF_INET,SOCK_STREAM,0);
-
-    server.sin_family=AF_INET;
-    server.sin_port=htons(9010);
-    server.sin_addr.s_addr=INADDR_ANY;
-
-    bind(s_sock,(struct sockaddr*)&server,sizeof(server));
-    listen(s_sock,5);
-
-    len=sizeof(client);
-    c_sock=accept(s_sock,(struct sockaddr*)&client,&len);
-
-    recv(c_sock,filename,sizeof(filename),0);
-    fp=fopen(filename,"r");
-
-    if(fp==NULL)
-    {
-        strcpy(data,"File not found");
-        send(c_sock,data,sizeof(data),0);
-    }
-    else
-    {
-        while(fgets(data,sizeof(data),fp)!=NULL)
-            send(c_sock,data,sizeof(data),0);
-
-        strcpy(data,"EOF");
-        send(c_sock,data,sizeof(data),0);
-        fclose(fp);
-    }
-
-    close(c_sock);
-    close(s_sock);
-}
-
-
-FTP Client
-
-#include<stdio.h>
-#include<stdlib.h>
-#include<string.h>
-#include<unistd.h>
-#include<arpa/inet.h>
-
-int main()
-{
-    int sock;
-    struct sockaddr_in server;
-    char filename[100],data[100];
-
-    sock=socket(AF_INET,SOCK_STREAM,0);
-
-    server.sin_family=AF_INET;
-    server.sin_port=htons(9010);
-    server.sin_addr.s_addr=inet_addr("127.0.0.1");
-
-    connect(sock,(struct sockaddr*)&server,sizeof(server));
-
-    printf("Enter file name: ");
-    scanf("%s",filename);
-
-    send(sock,filename,sizeof(filename),0);
-
-    while(1)
-    {
-        recv(sock,data,sizeof(data),0);
-
-        if(strcmp(data,"EOF")==0)
-            break;
-
-        printf("%s",data);
-    }
-
-    close(sock);
-}
-
-
----
-
-5. Leaky Bucket Algorithm
-
-#include<stdio.h>
-
-int main()
-{
-    int bucket_size,output_rate,packets,i,packet,bucket=0;
-
-    printf("Enter bucket size: ");
-    scanf("%d",&bucket_size);
-
-    printf("Enter output rate: ");
-    scanf("%d",&output_rate);
-
-    printf("Enter number of packets: ");
-    scanf("%d",&packets);
-
-    for(i=1;i<=packets;i++)
-    {
-        printf("Enter packet size %d: ",i);
-        scanf("%d",&packet);
-
-        if(packet > bucket_size)
-            printf("Packet %d dropped\n",i);
-        else if(bucket + packet > bucket_size)
-            printf("Bucket overflow, packet %d dropped\n",i);
-        else
+        else if((x=isdelim(c))!=-1)
         {
-            bucket += packet;
-            printf("Packet %d accepted\n",i);
+            printf("%c\t\tDelimiter\n",c);
         }
-
-        if(bucket > output_rate)
-            bucket -= output_rate;
-        else
-            bucket = 0;
-
-        printf("Bucket content after transmission: %d\n",bucket);
-    }
-}
-
-
----
-
-6. Distance Vector Routing Algorithm
-
-#include<stdio.h>
-
-int main()
-{
-    int n,i,j,k;
-    int cost[10][10],dist[10],visited[10],min,u;
-
-    printf("Enter number of nodes: ");
-    scanf("%d",&n);
-
-    printf("Enter cost matrix:\n");
-
-    for(i=0;i<n;i++)
-        for(j=0;j<n;j++)
-            scanf("%d",&cost[i][j]);
-
-    for(i=0;i<n;i++)
-    {
-        dist[i]=cost[0][i];
-        visited[i]=0;
-    }
-
-    visited[0]=1;
-
-    for(i=1;i<n;i++)
-    {
-        min=999;
-
-        for(j=0;j<n;j++)
+        else if((x=isoper(c))!=-1)
         {
-            if(dist[j]<min && !visited[j])
+            printf("%c\t\tOperator\n",c);
+        }
+        else if(isdigit(c))
+        {
+            int b=0;
+            while(isdigit(c))
             {
-                min=dist[j];
-                u=j;
+                lexbuf[b++]=c;
+                c=getc(fp);
+            }
+            ungetc(c,fp);
+            lexbuf[b]='\0';
+            printf("%s\t\tDigit\n",lexbuf);
+        }
+        else if(isalpha(c))
+        {
+            int b=0,k;
+            while(isalpha(c)||isdigit(c)||c=='_')
+            {
+                lexbuf[b++]=c;
+                c=getc(fp);
+            }
+            ungetc(c,fp);
+            lexbuf[b]='\0';
+            if((!(lookup(lexbuf)))&&(!iskw(lexbuf)))
+            {
+                strcpy(symtab[i++],lexbuf);
+            }
+            if((k=iskw(lexbuf))!=0)
+            {
+                printf("%s\t\t Keyword\n",lexbuf);
+            }
+            else
+            {
+                printf("%s\t\tIdentifier\n",lexbuf);
             }
         }
+        c=getc(fp);
+    }
+    fclose(fp);
+    printf("\nNumber of lines=%d\n",lineno);
+    return 0;
+}
 
-        visited[u]=1;
-
-        for(k=0;k<n;k++)
+int isdelim(char d)
+{
+    int k;
+    for(k=0;k<8;k++)
+    {
+        if(d==delim[k])
         {
-            if(dist[k] > dist[u] + cost[u][k])
-                dist[k] = dist[u] + cost[u][k];
+            return k;
         }
     }
+    return -1;
+}
 
-    printf("Shortest distances:\n");
+int isoper(char op)
+{
+    int k;
+    for(k=0;k<7;k++)
+    {
+        if(op==oper[k])
+        {
+            return k;
+        }
+    }
+    return -1;
+}
 
-    for(i=0;i<n;i++)
-        printf("%d\n",dist[i]);
+int lookup(char s[])
+{
+    int k;
+    for(k=0;k<i;k++)
+    {
+        if((strcmp(s,symtab[k]))==0)
+        {
+            return k+1;
+        }
+    }
+    return 0;
+}
+
+int iskw(char s[])
+{
+    int k;
+    for(k=0;k<15;k++)
+    {
+        if(strcmp(s,kw[k])==0)
+            return k+1;
+    }
+    return 0;
+}
+
+
+================================================================================
+2. ARITHMETIC CALCULATOR USING LEX & YACC
+================================================================================
+
+Running Commands:
+-----------------
+yacc -d calc.y
+lex calc.l
+gcc lex.yy.c y.tab.c -w -o calc
+./calc
+
+
+Input Format / Example:
+-----------------------
+4 + 5 * (2 - 1)
+
+
+Code: calc.l (Lexical Analyzer)
+-------------------------------
+%{
+#include <stdio.h>
+#include "y.tab.h"
+extern int yylval;
+%}
+
+%%
+[0-9]+      { yylval = atoi(yytext); return NUMBER; }
+[\n]        { return 0; }
+[ \t]       ; /* Ignore whitespace */
+.           { return yytext[0]; }
+%%
+
+int yywrap() {
+    return 1;
+}
+
+
+Code: calc.y (YACC Grammar & Evaluator)
+---------------------------------------
+%{
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+
+int flag = 0;
+int yylex();
+void yyerror(const char *s);
+%}
+
+%token NUMBER
+%left '+' '-'
+%left '*' '/' '%'
+%left '(' ')'
+
+%%
+Calculate : E {
+    printf("The calculated value is: %d\n", $$);
+}
+;
+
+E : E '+' E    { $$ = $1 + $3; }
+  | E '-' E    { $$ = $1 - $3; }
+  | E '*' E    { $$ = $1 * $3; }
+  | E '/' E    { 
+        if ($3 == 0) {
+            printf("\nRuntime Error: Division by zero!\n");
+            flag = 1;
+            YYABORT;
+        } else {
+            $$ = $1 / $3; 
+        }
+    }
+  | E '%' E    { $$ = $1 % $3; }
+  | '(' E ')'  { $$ = $2; }
+  | NUMBER     { $$ = $1; }
+  ;
+%%
+
+int main() {
+    printf("Enter the arithmetic expression to evaluate:\n");
+    yyparse();
+    if (flag == 0) {
+        printf("Successful evaluation done.\n");
+    }
+    return 0;
+}
+
+void yyerror(const char *s) {
+    flag = 1;
+    printf("Invalid expression to calculate, unable to parse.\n");
+}
+
+
+================================================================================
+3. CONSTANT PROPAGATION
+================================================================================
+
+Running Commands:
+-----------------
+gcc constant_propagation.c -o const_prop
+./const_prop
+
+
+Input Format / Example:
+-----------------------
+4
+= 3 ? a
++ a 5 b
++ b x c
+* c 2 d
+
+
+Code: constant_propagation.c
+----------------------------
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <ctype.h>
+
+void input();
+void constant();
+void change(int i, int res);
+void output();
+
+struct expression {
+    char op[2];
+    char op1[5];
+    char op2[5];
+    char res[5];
+    int flag;
+} arr[10];
+
+int n;
+
+int main() {
+    input();
+    constant();
+    output();
+    return 0;
+}
+
+void input() {
+    printf("Enter the number of expressions:\n");
+    scanf("%d", &n);
+    printf("Enter the expressions in format: <op> <op1> <op2> <res>\n");
+    printf("(Use '=' with '?' as dummy op2 for assignment, e.g. '= 3 ? a')\n");
+    for (int i = 0; i < n; i++) {
+        scanf("%s %s %s %s", arr[i].op, arr[i].op1, arr[i].op2, arr[i].res);
+        arr[i].flag = 0;
+    }
+}
+
+void constant() {
+    int op1, op2, res;
+    char op;
+    for (int i = 0; i < n; i++) {
+        if ((isdigit(arr[i].op1[0]) && isdigit(arr[i].op2[0])) || 
+            (strcmp(arr[i].op, "=") == 0 && isdigit(arr[i].op1[0]))) {
+            
+            op1 = atoi(arr[i].op1);
+            op2 = atoi(arr[i].op2);
+            op = arr[i].op[0];
+            
+            switch (op) {
+                case '+': res = op1 + op2; break;
+                case '-': res = op1 - op2; break;
+                case '*': res = op1 * op2; break;
+                case '/': 
+                    if (op2 != 0) res = op1 / op2; 
+                    else res = 0;
+                    break;
+                case '=': res = op1; break;
+            }
+            arr[i].flag = 1;
+            change(i, res);
+        }
+    }
+}
+
+void change(int i, int res) {
+    char res1[5];
+    sprintf(res1, "%d", res);
+    for (int j = i + 1; j < n; j++) {
+        if (strcmp(arr[i].res, arr[j].op1) == 0) {
+            strcpy(arr[j].op1, res1);
+        }
+        if (strcmp(arr[i].res, arr[j].op2) == 0) {
+            strcpy(arr[j].op2, res1);
+        }
+    }
+}
+
+void output() {
+    printf("\nOptimized code after Constant Propagation:\n");
+    for (int i = 0; i < n; i++) {
+        if (arr[i].flag == 0) {
+            printf("%s %s %s %s\n", arr[i].op, arr[i].op1, arr[i].op2, arr[i].res);
+        }
+    }
+}
+
+
+================================================================================
+4. FIRST SET OF GRAMMAR
+================================================================================
+
+Running Commands:
+-----------------
+gcc first_of_grammar.c -o first_set
+./first_set
+
+
+Input Format / Example:
+-----------------------
+8
+E=TX
+X=+TX
+X=$
+T=FY
+Y=*FY
+Y=$
+F=(E)
+F=i
+
+
+Code: first_of_grammar.c
+------------------------
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <ctype.h>
+
+char p[20][20];
+char f[20];
+int m = 0, n;
+
+void first(char c);
+void add_to_result(char ch);
+
+int main() {
+    int choice = 1;
+    char c;
+    
+    printf("Enter the number of productions: ");
+    scanf("%d", &n);
+    
+    printf("Enter the productions in (LHS=RHS) format (use '$' for epsilon):\n");
+    for (int i = 0; i < n; i++) {
+        scanf("%s", p[i]);
+    }
+    
+    do {
+        m = 0;
+        printf("\nEnter the non-terminal to find FIRST set: ");
+        scanf(" %c", &c);
+        
+        first(c);
+        
+        printf("FIRST(%c) = { ", c);
+        for (int i = 0; i < m; i++) {
+            printf("%c", f[i]);
+            if (i < m - 1) printf(", ");
+        }
+        printf(" }\n");
+        
+        printf("\nDo you want to continue? (1 for Yes / 0 for No): ");
+        scanf("%d", &choice);
+    } while (choice == 1);
+    
+    return 0;
+}
+
+void add_to_result(char ch) {
+    // Avoid duplicate insertions
+    for (int i = 0; i < m; i++) {
+        if (f[i] == ch) return;
+    }
+    f[m++] = ch;
+}
+
+void first(char c) {
+    // If c is terminal or epsilon ($), add directly to result
+    if (!isupper(c)) {
+        add_to_result(c);
+        return;
+    }
+    
+    // c is a non-terminal: search all productions with LHS == c
+    for (int i = 0; i < n; i++) {
+        if (p[i][0] == c) {
+            // If RHS derives epsilon directly
+            if (p[i][2] == '$') {
+                add_to_result('$');
+            } 
+            // If RHS begins with terminal
+            else if (!isupper(p[i][2])) {
+                add_to_result(p[i][2]);
+            } 
+            // If RHS begins with non-terminal
+            else {
+                first(p[i][2]);
+            }
+        }
+    }
+}
+
+
+================================================================================
+5. INTERMEDIATE CODE GENERATOR (THREE-ADDRESS CODE)
+================================================================================
+
+Running Commands:
+-----------------
+gcc intermediate_code.c -o icg
+./icg
+
+
+Input Format / Examples:
+------------------------
+Choice 1 (Assignment): a=b+c
+Choice 2 (Arithmetic): a*b-c
+Choice 3 (Relational): a<=b
+
+
+Code: intermediate_code.c
+-------------------------
+#include <stdio.h>
+#include <string.h>
+#include <stdlib.h>
+
+void assignment_tac(char exp[]);
+void arithmetic_tac(char exp[]);
+void relational_tac(char exp[]);
+
+int addr = 100;
+
+int main() {
+    int ch;
+    char exp[50];
+    
+    while (1) {
+        printf("\n==========================================");
+        printf("\n       THREE ADDRESS CODE GENERATOR       ");
+        printf("\n==========================================");
+        printf("\n1. Assignment Statement");
+        printf("\n2. Arithmetic Expression");
+        printf("\n3. Relational Expression");
+        printf("\n4. Exit");
+        printf("\nEnter your choice (1-4): ");
+        scanf("%d", &ch);
+        
+        switch (ch) {
+            case 1:
+                printf("\nEnter assignment expression (e.g., a=b or a=b+c): ");
+                scanf("%s", exp);
+                assignment_tac(exp);
+                break;
+                
+            case 2:
+                printf("\nEnter arithmetic expression (e.g., a*b-c or a+b*c): ");
+                scanf("%s", exp);
+                arithmetic_tac(exp);
+                break;
+                
+            case 3:
+                printf("\nEnter relational expression (e.g., a<=b or x>y): ");
+                scanf("%s", exp);
+                relational_tac(exp);
+                break;
+                
+            case 4:
+                printf("\nExiting TAC Generator...\n");
+                exit(0);
+                
+            default:
+                printf("\nInvalid choice! Please choose between 1 and 4.\n");
+        }
+    }
+    return 0;
+}
+
+void assignment_tac(char exp[]) {
+    int i = 0, l = strlen(exp);
+    char lhs[10], rhs[20];
+    
+    while (exp[i] != '=' && i < l) {
+        lhs[i] = exp[i];
+        i++;
+    }
+    lhs[i] = '\0';
+    
+    if (i >= l) {
+        printf("Error: Missing assignment operator '='.\n");
+        return;
+    }
+    
+    strcpy(rhs, &exp[i + 1]);
+    
+    printf("\nThree Address Code Generated:\n");
+    int has_op = 0, op_pos = -1;
+    for (int j = 0; rhs[j] != '\0'; j++) {
+        if (rhs[j] == '+' || rhs[j] == '-' || rhs[j] == '*' || rhs[j] == '/') {
+            has_op = 1;
+            op_pos = j;
+            break;
+        }
+    }
+    
+    if (has_op) {
+        char op1[10], op2[10];
+        strncpy(op1, rhs, op_pos);
+        op1[op_pos] = '\0';
+        strcpy(op2, &rhs[op_pos + 1]);
+        printf("temp = %s %c %s\n", op1, rhs[op_pos], op2);
+        printf("%s = temp\n", lhs);
+    } else {
+        printf("temp = %s\n", rhs);
+        printf("%s = temp\n", lhs);
+    }
+}
+
+void arithmetic_tac(char exp[]) {
+    int l = strlen(exp);
+    int op_idx = -1;
+    
+    printf("\nThree Address Code Generated:\n");
+    for (int i = 0; i < l; i++) {
+        if (exp[i] == '*' || exp[i] == '/') {
+            op_idx = i;
+            break;
+        }
+    }
+    
+    if (op_idx != -1) {
+        printf("temp = %c %c %c\n", exp[op_idx - 1], exp[op_idx], exp[op_idx + 1]);
+        if (op_idx + 2 < l) {
+            printf("temp1 = temp %c %c\n", exp[op_idx + 2], exp[op_idx + 3]);
+        } else if (op_idx - 2 >= 0) {
+            printf("temp1 = %c %c temp\n", exp[op_idx - 3], exp[op_idx - 2]);
+        }
+    } else {
+        printf("temp = %c %c %c\n", exp[0], exp[1], exp[2]);
+        if (l > 3) {
+            printf("temp1 = temp %c %c\n", exp[3], exp[4]);
+        }
+    }
+}
+
+void relational_tac(char exp[]) {
+    printf("\nThree Address Code Generated:\n");
+    printf("%d: if %s goto %d\n", addr, exp, addr + 3);
+    printf("%d: T = 0\n", addr + 1);
+    printf("%d: goto %d\n", addr + 2, addr + 4);
+    printf("%d: T = 1\n", addr + 3);
+    addr += 4;
+}
+
+
+================================================================================
+6. SHIFT-REDUCE PARSER
+================================================================================
+
+Running Commands:
+-----------------
+gcc shift_reduce_parser.c -o srp
+./srp
+
+
+Input Format / Example:
+-----------------------
+id+id*id
+
+
+Code: shift_reduce_parser.c
+---------------------------
+#include <stdio.h>
+#include <string.h>
+#include <stdlib.h>
+
+char input[50], stack[50], action[50];
+int k = 0, i = 0, len = 0;
+
+int check() {
+    if (k >= 2 && stack[k - 1] == 'd' && stack[k - 2] == 'i') {
+        stack[k - 2] = 'E';
+        stack[k - 1] = '\0';
+        k = k - 1;
+        strcpy(action, "REDUCE");
+        printf("%s\t\t%s\t\t%s E->id\n", stack, input, action);
+        return 1;
+    }
+    else if (k >= 3 && stack[k - 1] == 'E' && stack[k - 2] == '+' && stack[k - 3] == 'E') {
+        stack[k - 3] = 'E';
+        stack[k - 2] = '\0';
+        k = k - 2;
+        strcpy(action, "REDUCE");
+        printf("%s\t\t%s\t\t%s E->E+E\n", stack, input, action);
+        return 1;
+    }
+    else if (k >= 3 && stack[k - 1] == 'E' && stack[k - 2] == '*' && stack[k - 3] == 'E') {
+        stack[k - 3] = 'E';
+        stack[k - 2] = '\0';
+        k = k - 2;
+        strcpy(action, "REDUCE");
+        printf("%s\t\t%s\t\t%s E->E*E\n", stack, input, action);
+        return 1;
+    }
+    else if (k >= 3 && stack[k - 1] == ')' && stack[k - 2] == 'E' && stack[k - 3] == '(') {
+        stack[k - 3] = 'E';
+        stack[k - 2] = '\0';
+        k = k - 2;
+        strcpy(action, "REDUCE");
+        printf("%s\t\t%s\t\t%s E->(E)\n", stack, input, action);
+        return 1;
+    }
+    return 0;
+}
+
+int main() {
+    printf("The grammar used to parse is as follows:\n");
+    printf("  E -> E + E\n");
+    printf("  E -> E * E\n");
+    printf("  E -> (E)\n");
+    printf("  E -> id\n\n");
+    
+    printf("Enter the string to parse (e.g., id+id*id):\n");
+    scanf("%s", input);
+    len = strlen(input);
+    
+    printf("\nSTACK\t\tINPUT\t\tACTION\n");
+    printf("-----\t\t-----\t\t------\n");
+    
+    while (i < len || !(stack[0] == 'E' && stack[1] == '\0')) {
+        if (input[i] == 'i' && input[i + 1] == 'd' && (i + 1) < len) {
+            stack[k] = input[i];
+            stack[k + 1] = input[i + 1];
+            stack[k + 2] = '\0';
+            input[i] = ' ';
+            input[i + 1] = ' ';
+            k += 2;
+            i += 2;
+            strcpy(action, "SHIFT");
+            printf("%s\t\t%s\t\t%s id\n", stack, input, action);
+            while (check());
+        } 
+        else {
+            if (!check()) {
+                if (i < len) {
+                    stack[k] = input[i];
+                    char temp = input[i];
+                    stack[k + 1] = '\0';
+                    input[i] = ' ';
+                    k++;
+                    i++;
+                    strcpy(action, "SHIFT");
+                    printf("%s\t\t%s\t\t%s %c\n", stack, input, action, temp);
+                    while (check());
+                } else {
+                    printf("\nREJECT: String cannot be parsed with given grammar.\n");
+                    return 0;
+                }
+            }
+        }
+    }
+    
+    if (stack[0] == 'E' && stack[1] == '\0') {
+        printf("\nACCEPT: Input string parsed successfully!\n");
+    } else {
+        printf("\nREJECT: Parsing terminated with error.\n");
+    }
+    
+    return 0;
 }
