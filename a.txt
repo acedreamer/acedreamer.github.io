@@ -473,11 +473,9 @@ gcc intermediate_code.c -o icg
 ./icg
 
 
-Input Format / Examples:
-------------------------
-Choice 1 (Assignment): a=b+c
-Choice 2 (Arithmetic): a*b-c
-Choice 3 (Relational): a<=b
+Input Format / Example:
+-----------------------
+w=a*b+c
 
 
 Code: intermediate_code.c
@@ -486,131 +484,89 @@ Code: intermediate_code.c
 #include <string.h>
 #include <stdlib.h>
 
-void assignment_tac(char exp[]);
-void arithmetic_tac(char exp[]);
-void relational_tac(char exp[]);
+char str[100], left[15], right[15], resultvar[15];
+int i = 0, j = 0, tmpch = 'Z'; // Use 'z' for lowercase or 'Z' to match your written output
 
-int addr = 100;
+struct exp {
+    int pos;
+    char op;
+} k[15];
+
+void findopr();
+void explore();
+void fleft(int x);
+void fright(int x);
 
 int main() {
-    int ch;
-    char exp[50];
+    printf("Enter the exp: ");
+    scanf("%s", str);
     
-    while (1) {
-        printf("\n==========================================");
-        printf("\n       THREE ADDRESS CODE GENERATOR       ");
-        printf("\n==========================================");
-        printf("\n1. Assignment Statement");
-        printf("\n2. Arithmetic Expression");
-        printf("\n3. Relational Expression");
-        printf("\n4. Exit");
-        printf("\nEnter your choice (1-4): ");
-        scanf("%d", &ch);
-        
-        switch (ch) {
-            case 1:
-                printf("\nEnter assignment expression (e.g., a=b or a=b+c): ");
-                scanf("%s", exp);
-                assignment_tac(exp);
-                break;
-                
-            case 2:
-                printf("\nEnter arithmetic expression (e.g., a*b-c or a+b*c): ");
-                scanf("%s", exp);
-                arithmetic_tac(exp);
-                break;
-                
-            case 3:
-                printf("\nEnter relational expression (e.g., a<=b or x>y): ");
-                scanf("%s", exp);
-                relational_tac(exp);
-                break;
-                
-            case 4:
-                printf("\nExiting TAC Generator...\n");
-                exit(0);
-                
-            default:
-                printf("\nInvalid choice! Please choose between 1 and 4.\n");
-        }
+    char *eq_pos = strchr(str, '=');
+    if (!eq_pos) {
+        printf("invalid exp. '=' missing.\n");
+        return 1;
     }
+    
+    *eq_pos = '\0';
+    strcpy(resultvar, str);
+    strcpy(str, eq_pos + 1);
+    
+    printf("\nThe intermediate code:\n");
+    findopr();
+    explore();
+    
     return 0;
 }
 
-void assignment_tac(char exp[]) {
-    int i = 0, l = strlen(exp);
-    char lhs[10], rhs[20];
-    
-    while (exp[i] != '=' && i < l) {
-        lhs[i] = exp[i];
-        i++;
-    }
-    lhs[i] = '\0';
-    
-    if (i >= l) {
-        printf("Error: Missing assignment operator '='.\n");
-        return;
-    }
-    
-    strcpy(rhs, &exp[i + 1]);
-    
-    printf("\nThree Address Code Generated:\n");
-    int has_op = 0, op_pos = -1;
-    for (int j = 0; rhs[j] != '\0'; j++) {
-        if (rhs[j] == '+' || rhs[j] == '-' || rhs[j] == '*' || rhs[j] == '/') {
-            has_op = 1;
-            op_pos = j;
-            break;
-        }
-    }
-    
-    if (has_op) {
-        char op1[10], op2[10];
-        strncpy(op1, rhs, op_pos);
-        op1[op_pos] = '\0';
-        strcpy(op2, &rhs[op_pos + 1]);
-        printf("temp = %s %c %s\n", op1, rhs[op_pos], op2);
-        printf("%s = temp\n", lhs);
-    } else {
-        printf("temp = %s\n", rhs);
-        printf("%s = temp\n", lhs);
-    }
+void findopr() {
+    int len = strlen(str);
+    for (i = 0; i < len; i++)
+        if (str[i] == '*') { k[j].pos = i; k[j++].op = '*'; }
+    for (i = 0; i < len; i++)
+        if (str[i] == '/') { k[j].pos = i; k[j++].op = '/'; }
+    for (i = 0; i < len; i++)
+        if (str[i] == '+') { k[j].pos = i; k[j++].op = '+'; }
+    for (i = 0; i < len; i++)
+        if (str[i] == '-') { k[j].pos = i; k[j++].op = '-'; }
 }
 
-void arithmetic_tac(char exp[]) {
-    int l = strlen(exp);
-    int op_idx = -1;
-    
-    printf("\nThree Address Code Generated:\n");
-    for (int i = 0; i < l; i++) {
-        if (exp[i] == '*' || exp[i] == '/') {
-            op_idx = i;
-            break;
-        }
+void explore() {
+    char temp;
+    for (i = 0; i < j; i++) {
+        fleft(k[i].pos);
+        fright(k[i].pos);
+        temp = tmpch--;
+        str[k[i].pos] = temp;
+        printf("%c:=%s%c%s\n", temp, left, k[i].op, right);
     }
-    
-    if (op_idx != -1) {
-        printf("temp = %c %c %c\n", exp[op_idx - 1], exp[op_idx], exp[op_idx + 1]);
-        if (op_idx + 2 < l) {
-            printf("temp1 = temp %c %c\n", exp[op_idx + 2], exp[op_idx + 3]);
-        } else if (op_idx - 2 >= 0) {
-            printf("temp1 = %c %c temp\n", exp[op_idx - 3], exp[op_idx - 2]);
-        }
-    } else {
-        printf("temp = %c %c %c\n", exp[0], exp[1], exp[2]);
-        if (l > 3) {
-            printf("temp1 = temp %c %c\n", exp[3], exp[4]);
-        }
-    }
+    if (j > 0)
+        printf("%s:=%c\n", resultvar, tmpch + 1);
+    else
+        printf("%s:=%s\n", resultvar, str);
 }
 
-void relational_tac(char exp[]) {
-    printf("\nThree Address Code Generated:\n");
-    printf("%d: if %s goto %d\n", addr, exp, addr + 3);
-    printf("%d: T = 0\n", addr + 1);
-    printf("%d: goto %d\n", addr + 2, addr + 4);
-    printf("%d: T = 1\n", addr + 3);
-    addr += 4;
+void fleft(int x) {
+    int w = 0;
+    x--;
+    while (x > 0 && str[x] == ' ')
+        x--;
+    if (str[x] != ' ') {
+        left[w++] = str[x];
+        str[x] = ' ';
+    }
+    left[w] = '\0';
+}
+
+void fright(int x) {
+    int w = 0;
+    x++;
+    while (str[x] == ' ')
+        x++;
+    if (str[x] != '\0' && str[x] != ' ') {
+        right[w++] = str[x];
+        str[x] = ' ';
+    }
+    right[w] = '\0';
 }
 
 
